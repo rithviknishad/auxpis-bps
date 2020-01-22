@@ -13,13 +13,13 @@ AUXPIS - A portable, variable bench power supply, supporting various input sourc
 
 | __Param__ | Min Value | Max Value | Unit |
 | --------- | --------- | --------- | ---- |
-| __Input DC__ | 12 | 50 | **V** |
-| __Input AC__* | 45 | 450 | V |
-| __Output V__ | 1.5 | 35 | **V** |
+| __Input DC__ | 5 | 50 | **V** |
+| __Input AC__* | 50 | 300 | V |
+| __Output V__ | 1.5 | 26 | **V** |
 | __Max Current__ | - | 3.2 _(m1)_, 6 _(m2)_ | **A** |
-| __Rated Power__ | - | 200 | **W** |
+| __Rated Power__ | - | 180 | **W** |
 
-_/*AC should be connected to unit using the AC adapter unit only. Directly connecting can lead to damage of unit._
+_*AC input should be connected to unit only using the AC-DC adapter. Directly connecting AC inputs to the unit can lead to damage._
 
 ### Contributors
 | Name | |
