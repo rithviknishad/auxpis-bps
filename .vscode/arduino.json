@@ -1,0 +1,5 @@
+{
+    "board": "arduino:avr:uno",
+    "sketch": "firmware-source\\display.ino",
+    "port": "COM3"
+}
