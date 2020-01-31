@@ -9,7 +9,7 @@ MCUFRIEND_kbv tft;
 
 // TFT Touchscreen calibration values
 const int XP=8, XM=A2, YP=A3, YM=9; //320x480 ID=0x9486
-const int TS_LEFT=190, TS_RT=866, TS_TOP=919, TS_BOT=98;
+const int TS_LEFT=919, TS_RT=98, TS_TOP=866, TS_BOT=190;
 
 // PORTRAIT CALIBRATION     320 x 480
 // x = map(p.x, LEFT=190, RT=866, 0, 320)
@@ -34,8 +34,8 @@ bool Touch_getXY(void)
     Serial.println(p.z ? 1/p.z : 0);
     bool pressed = (p.z > TOUCH_MINPRESSURE && p.z < TOUCH_MAXPRESSURE);
     if (pressed) {
-        pixel_x = map(p.x, TS_LEFT, TS_RT, 0, tft.width());
-        pixel_y = map(p.y, TS_TOP, TS_BOT, 0, tft.height());
+        pixel_x = map(p.y, TS_LEFT, TS_RT, 0, tft.width());
+        pixel_y = map(p.x, TS_TOP, TS_BOT, 0, tft.height());
     }
     return pressed;
 }
@@ -59,7 +59,7 @@ void setup(void)
     if (ID == 0xD3D3) ID = 0x9486; // write-only shield
 
     tft.begin(ID);
-    tft.setRotation(0);            //PORTRAIT
+    tft.setRotation(1);            //PORTRAIT
     tft.fillScreen(BLACK);
     testButton.initButton(&tft,  60, 200, 100, 40, BLACK, YELLOW, BLACK, "TEST", 2);
     testButton.drawButton(false);
