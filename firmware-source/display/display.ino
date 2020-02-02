@@ -7,6 +7,9 @@ MCUFRIEND_kbv tft;
 #define TOUCH_MINPRESSURE 0
 #define TOUCH_MAXPRESSURE 1000
 
+#define PORTRAIT 0
+#define LANDSCAPE 1
+
 // TFT Touchscreen calibration values
 const int XP=8, XM=A2, YP=A3, YM=9; //320x480 ID=0x9486
 const int TS_LEFT=919, TS_RT=98, TS_TOP=866, TS_BOT=190;
@@ -21,10 +24,11 @@ const int TS_LEFT=919, TS_RT=98, TS_TOP=866, TS_BOT=190;
 
 TouchScreen ts = TouchScreen(XP, YP, XM, YM, 300);
 
+typedef Adafruit_GFX_Button Button;
 Adafruit_GFX_Button testButton;
 
 int pixel_x, pixel_y;     //Touch_getXY() updates global vars
-bool Touch_getXY(void)
+bool Touch_getXY()
 {
     TSPoint p = ts.getPoint();
     pinMode(YP, OUTPUT);
@@ -49,7 +53,7 @@ bool Touch_getXY(void)
 #define YELLOW  0xFFE0
 #define WHITE   0xFFFF
 
-void setup(void)
+void setup()
 {
     Serial.begin(9600);
     uint16_t ID = tft.readID();
@@ -59,7 +63,7 @@ void setup(void)
     if (ID == 0xD3D3) ID = 0x9486; // write-only shield
 
     tft.begin(ID);
-    tft.setRotation(1);            //PORTRAIT
+    tft.setRotation(LANDSCAPE); 
     tft.fillScreen(BLACK);
     testButton.initButton(&tft,  60, 200, 100, 40, BLACK, YELLOW, BLACK, "TEST", 2);
     testButton.drawButton(false);
@@ -67,7 +71,7 @@ void setup(void)
 }
 
 
-void loop(void)
+void loop()
 {
     bool down = Touch_getXY();
     testButton.press(down && testButton.contains(pixel_x, pixel_y));
