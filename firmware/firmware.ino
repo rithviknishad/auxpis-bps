@@ -114,14 +114,15 @@ unsigned int SRR = SR | SR_Millis | SR_Vout | SR_TargetParam | SR_VNB | SR_Curre
 #define CV      (1 << 3)
 #define UVLO    (1 << 4)
 
-unsigned char BBCMR = BUCK | CV;
+unsigned char BBCMR = 0;
 
-float Vin = 0;  // input source voltage.
-float UVLOT = 7;
+
+float Vin = 0;
+float UVLOT = 4;
 
 // user control params
 float VoutMax = 0;
-float IoutMax_mA = 1e+3;
+float IoutMax_mA = 0;
 
 float Vnb = 0;
 
@@ -179,9 +180,10 @@ bool touched()
 
 #define PIN_FET_BOOST       10
 #define PIN_FET_BUCK        11
-#define PIN_VIN_SENSE       A6
-#define PIN_NBOOST_SENSE    A7
-#define PIN_RELAY           12 // PORTB 4
+#define PIN_VIN_SENSE       A7
+#define PIN_NBOOST_SENSE    A6
+#define PIN_RELAY_P         23 // PORTA 4
+#define PIN_RELAY_N         22
 #define PIN_STATUS_LED      13
 
 // Initializes the Input Output pins and updates timer registers
@@ -203,10 +205,12 @@ void InitializeIO()
     pinMode(PIN_VIN_SENSE, INPUT);
     pinMode(PIN_NBOOST_SENSE, INPUT);
     
-    pinMode(PIN_RELAY, OUTPUT);
+    pinMode(PIN_RELAY_P, OUTPUT);
+    pinMode(PIN_RELAY_N, OUTPUT);
     pinMode(PIN_STATUS_LED, OUTPUT);
 
-    digitalWrite(PIN_RELAY, LOW);
+    digitalWrite(PIN_RELAY_P, LOW);
+    digitalWrite(PIN_RELAY_N, LOW);
     digitalWrite(PIN_STATUS_LED, HIGH);
 
     Serial.println("[1] Updated IO registers");
@@ -270,8 +274,8 @@ void InitializeSystem()
     
     InitializeIO();
 
-    power_meter.begin();
-    Serial.println("[1] Power Meter [INA219] sensor initialized.");
+    //power_meter.begin();
+    //Serial.println("[1] Power Meter [INA219] sensor initialized.");
 
     InitializeDisplay();
 
@@ -285,6 +289,11 @@ void DrawNumpad()
             buttons_numpad[i][j].drawButton();
 }
 
+
+void __drawParam_voltage(char* buff)
+{
+    static int last_pcnt = 0;
+}
 
 void DrawHomeScreenParams()
 {
@@ -549,8 +558,8 @@ void UpdateSerialReport()
     }
 }
 
-#define k1 0.05
-#define k2 0.05
+#define k1 0.0322265625
+#define k2 0.0322265625
 
 void UpdateDisplay()
 {
@@ -586,7 +595,8 @@ void UpdateExternals()
     BBCMR = ((VoutMax < (Vin - 0.5)) ? (BUCK | (BBCMR & ~BOOST)) : (BOOST | (BBCMR & ~BUCK)));
 
     // SET RELAY SIGNAL ACCORDING TO BUCK / BOOST
-    PORTB = (BBCMR & BOOST ? (PORTB | _BV(4)) : (PORTB & ~_BV(4)));
+    PORTA = (BBCMR & BOOST ? (PORTA | _BV(0)) : (PORTA & ~_BV(0)));
+    PORTA = (BBCMR & BOOST ? (PORTA | _BV(1)) : (PORTA & ~_BV(1)));
 
     digitalWrite(PIN_STATUS_LED, !digitalRead(PIN_STATUS_LED));
 }
