@@ -510,9 +510,9 @@ void UpdateDisplay() { __drawParams(); }
 unsigned long external_last_millis = 0;
 //unsigned long internal_last_millis = 0;
 
-#define k1 0.0322265625
-#define k2 0.0322265625
-#define k3 0.0322265625
+#define vin_mfact 0.032258064516
+#define vnb_mfact 0.032258064516
+#define vpb_mfact 0.069662815484
 
 #define analogVoltage(x)            (x * 5 / 1023)
 #define ACS712_ZEROCURRENT_VOLTAGE  2.5 V
@@ -524,9 +524,9 @@ void UpdateExternals()
 {
     static unsigned short delta_millis_external = millis() - external_last_millis;
 
-    Vin = analogRead(PIN_VIN_SENSE) * k1; ///
-    Vpb = analogRead(PIN_PBOOST_SENSE) * k2; ///
-    Vnb = analogRead(PIN_NBOOST_SENSE) * k3; ///
+    Vin = analogRead(PIN_VIN_SENSE) * vin_mfact;
+    Vpb = analogRead(PIN_PBOOST_SENSE) * vpb_mfact;
+    Vnb = analogRead(PIN_NBOOST_SENSE) * vnb_mfact;
     
     Vout = Vpb - Vnb;
     
@@ -560,7 +560,7 @@ void UpdateInternal()
     //static unsigned short delta_millis_internal = millis() - internal_last_millis;
 
     // read priority parameters ( V and I )
-    Vout = (analogRead(PIN_PBOOST_SENSE) * k2) - (BBCMR & BUCK ? analogRead(PIN_NBOOST_SENSE) * k3 : 0);
+    Vout = (analogRead(PIN_PBOOST_SENSE) * vpb_mfact) - (BBCMR & BUCK ? analogRead(PIN_NBOOST_SENSE) * vnb_mfact : 0);
     Iout = current_ACS712_x30A;
 
     BBCMR = ((Vout >= Vout_max) ? (BBCMR | CV) : (BBCMR & ~CV));  //CV register update
