@@ -251,7 +251,7 @@ void __drawParam_current(float value, char mode = 0)
 
     screen.setTextSize(4);
     screen.setCursor(40, 140);
-    int str_count = 0; = screen.print(value);
+    int str_count = screen.print(value);
 
     if (str_count < previous_strlen)
     {
@@ -295,7 +295,7 @@ void setup()
 }
 
 
-float set_Vout(float value)
+float set_Vout_max(float value)
 {
     if (value > VOUT_MAX_LIMIT)
         return Vout_max = VOUT_MAX_LIMIT;
@@ -305,27 +305,28 @@ float set_Vout(float value)
         return Vout_max = value;
 }
 
-float set_Vout(char* value)
+float getValueFromString(char * str)
 {
-    float f_val = 0;
+    float value = 0;
+    unsigned char decimalOffset = strlen(str);
 
-    unsigned char decimal_offset = 0;
-
-    for (int i = 0; i < strlen(value) ++i)
+    for (int i = 0; i < strlen(str); ++i)
     {
-        if (value[i] > 47 && value[i] < 58)
+        if (str[i] > 47 && str[i] < 8)
         {
-            f_val *= 10;
-            f_val += value[i] - 48;
-
+            value *= 10;
+            value += str[i] - 48;
         }
-
-        if (value[i] = '.')
-            decimal_offset = i;
+        else if (str[i] == '.')
+            decimalOffset = i + 1;
+        else
+            return -1;
     }
+
+    return (value * pow(0.1, strlen(str) - decimalOffset));
 }
 
-float set_Iout(float value)
+float set_Iout_max(float value)
 {
     if (value > IOUT_MAX_LIMIT)
         return Iout_max = IOUT_MAX_LIMIT;
@@ -335,74 +336,48 @@ float set_Iout(float value)
         return Iout_max = value;
 }
 
-float set_Iout(const char* value)
+char char_buff_20b[20];  // a global buffer space for serial
+char* readStringFromStream(Stream &stream, char* buffer, unsigned int max_size = 20)
 {
-
+    int i = -1;
+    while(i < max_size)
+    {
+        if (stream.available() > 0)
+        {
+            buffer[++i] = stream.read();
+            if (buffer[i] == ';' || buffer[i] == '\n' || buffer[i] == '\r')
+            {
+                buffer[i] = '\0';
+                return buffer;
+            }
+        }
+    }
+    return buffer = "";
 }
-
 
 
 void UpdateSerialReport()
 {
     if (Serial.available() > 0)
     {
-        static int readByte = 0;
+        static char readByte = 0;
         switch (Serial.read())
         {
         case 'V':
         case 'v':
-            Vout_max = 0;
-            Serial.print("\nSet Max Voltage [V] : ");
-            
-            while((readByte = Serial.read()) != ';')
-            {
-                readByte -= 48;
-                if (readByte > -1 && readByte < 10)
-                {
-                    Serial.print(readByte);
-                    Vout_max *= 10;
-                    Vout_max += readByte;
-                }
-            }
-
-            Serial.print("\nSet Max Voltage [mV] : ");
-            
-            static int milliVolts = 0;
-            while((readByte = Serial.read()) != ';')
-            {
-                readByte -= 48;
-                if (readByte > -1 && readByte < 10)
-                {
-                    Serial.print(readByte);
-                    milliVolts *= 10;
-                    milliVolts += readByte;
-                }
-            }
-
-            Vout_max += milliVolts mV;
-
-            Serial.print("\nVmax set to : ");
-            Serial.println(Vout_max);
+            Serial.print("\nSet OP Voltage [V] : ");            
+            Serial.print("\nVout_max set to : ");
+            Serial.print(set_Vout_max(getValueFromString(readStringFromStream(Serial, char_buff_20b))));
+            Serial.println(" V");
             break;
         
 
         case 'I':
         case 'i':
-            static int _Iout_max = 0;
             Serial.print("\nSet Max Current [mA] : ");
-            while((readByte = Serial.read()) != ';')
-            {
-                readByte -= 48;
-                if (readByte > -1 && readByte < 10)
-                {
-                    Serial.print(readByte);
-                    _Iout_max *= 10;
-                    _Iout_max += readByte;
-                }
-            }
-
             Serial.print("\nMax Current set to : ");
-            Serial.println(Iout_max = _Iout_max mA);
+            Serial.print(set_Iout_max(getValueFromString(readStringFromStream(Serial, char_buff_20b))));
+            Serial.print(" A");
             break;
 
         case 'S':
