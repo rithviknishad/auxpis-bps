@@ -23,10 +23,10 @@ TouchScreen touchscreen = TouchScreen(8, A3, A2, 9, 300);
 
 
 /*  GLOBAL SYSTEM PARAMETERS  */
-#define VOUT_MIN_LIMIT  2  V
-#define VOUT_MAX_LIMIT  30 V
+#define VOUT_MIN_LIMIT  2   V
+#define VOUT_MAX_LIMIT  30  V
 #define IOUT_MIN_LIMIT  100 mA
-#define IOUT_MAX_LIMIT  26 A
+#define IOUT_MAX_LIMIT  26  A
 
 
 /*------------------------  I / O  PINOUT  MAPPING  ------------------------*/
@@ -83,11 +83,12 @@ unsigned int SRR = SR_REPORT | SR_UPTIME | SR_VOUT | SR_IOUT | SR_VSHUNT | SR_PW
 
 unsigned char BBCMR = 0;
 
+unsigned int ACS712_ZeroError = 0;
 
 float Vin = 0 V;
 float UVLOT = 7 V;
 
-float Vout_max = 1 V;
+float Vout_max = VOUT_MIN_LIMIT V;
 float Iout_max = 500 mA;
 
 float Vnb = 0 V;
@@ -100,8 +101,8 @@ float Iout = 0 A;
 float Power = 0 W;
 float Energy = 0 Wh;
 
-char PWM_BUCK = 0;
-char PWM_BOOST = 0;
+short PWM_BUCK = 0;
+short PWM_BOOST = 0;
 
 
 
@@ -120,10 +121,10 @@ void InitializeIO()
     Serial.println("      [ 2 / 5 ] Initialized { BOOST , BUCK } N-MOSFET_GATE_DRIVE_PIN registers.");
 
     DDRA |= ((1 << 0) | (1 << 1));  // pinMode(PIN_RELAY_P, OUTPUT); pinMode(PIN_RELAY_N, OUTPUT);
-    PORTA &= ~((1 << 0) | (1 << 1));  // digitalWrite(PIN_RELAY_P, LOW); digitalWrite(PIN_RELAY_N, LOW);
+    PORTA |= ((1 << 0) | (1 << 1));  // digitalWrite(PIN_RELAY_P, HIGH); digitalWrite(PIN_RELAY_N, HIGH);
     Serial.println("      [ 3 / 5 ] Initialized PIN_RELAY { P , N } registers.");
     
-    DDRF &= ~((1 << 4) | (1 << 5) | (1 << 6) | (1 << 7));  // pinMode(PIN_VIN_SENSE, INPUT); pinMode(PIN_ACS712_SENSE, INPUT); pinMode(PIN_NBOOST_SENSE, INPUT); pinMode(PIN_PBOOST_SENSE, INPUT); 
+    DDRF &= ~((1 << 4) | (1 << 5) | (1 << 6) | (1 << 7));   pinMode(PIN_VIN_SENSE, INPUT); pinMode(PIN_ACS712_SENSE, INPUT); pinMode(PIN_NBOOST_SENSE, INPUT); pinMode(PIN_PBOOST_SENSE, INPUT); 
     Serial.println("      [ 4 / 5 ] Initialized PIN_SENSE registers.");
     
     DDRK &= ~((1 << 0) | (1 << 1) | (1 << 2));  // pinMode(PIN_LM35_REG_SENSE, INPUT); pinMode(PIN_LM35_FET0_SENSE, INPUT); pinMode(PIN_LM35_FET1_SENSE, INPUT);
@@ -131,6 +132,21 @@ void InitializeIO()
     
     Serial.println("[ OK ] IO registers initialized and updated.");
 }
+
+void InitializeACS712()
+{
+    Serial.println("[ .. ] Initializing ACS712 Bidirectional Current Sensor (ELC30A)");
+
+    for (int i = 0; i < 100; ++i)
+        ACS712_ZeroError += analogRead(PIN_ACS712_SENSE);
+    ACS712_ZeroError /= 100;
+
+    Serial.print("       Sensor::ACS712::Zero_Error=");
+    Serial.println(ACS712_ZeroError);
+
+    Serial.println("[ OK ] ACS712 Sensor Initialized.");
+}
+
 
 #define colorFromRGB(red, green, blue) (int(red * 0.125) << 11) | (int(green * 0.25) << 5) | int(blue * 0.125)
 
@@ -189,6 +205,7 @@ void InitializeSystem()
     Serial.println("Licensed under MIT License. See LICENSE.md at https://github.com/rithviknishad/auxpis-bps/\n");
 
     InitializeIO();
+    InitializeACS712();
     InitializeDisplay();
 
     /// add restriction code for low inupt voltage...
@@ -312,7 +329,7 @@ float getValueFromString(char * str)
 
     for (int i = 0; i < strlen(str); ++i)
     {
-        if (str[i] > 47 && str[i] < 8)
+        if (str[i] > 47 && str[i] < 58)
         {
             value *= 10;
             value += str[i] - 48;
@@ -322,7 +339,6 @@ float getValueFromString(char * str)
         else
             return -1;
     }
-
     return (value * pow(0.1, strlen(str) - decimalOffset));
 }
 
@@ -336,15 +352,15 @@ float set_Iout_max(float value)
         return Iout_max = value;
 }
 
-char char_buff_20b[20];  // a global buffer space for serial
-char* readStringFromStream(Stream &stream, char* buffer, unsigned int max_size = 20)
+char char_buff_20b[20];  // a global buffer space
+char* readStringFromStream(Stream &stream, char* buffer, int max_size = 20)
 {
     int i = -1;
     while(i < max_size)
     {
         if (stream.available() > 0)
         {
-            buffer[++i] = stream.read();
+            Serial.print(buffer[++i] = stream.read());
             if (buffer[i] == ';' || buffer[i] == '\n' || buffer[i] == '\r')
             {
                 buffer[i] = '\0';
@@ -361,7 +377,7 @@ void UpdateSerialReport()
     if (Serial.available() > 0)
     {
         static char readByte = 0;
-        switch (Serial.read())
+        switch (readByte = Serial.read())
         {
         case 'V':
         case 'v':
@@ -377,7 +393,7 @@ void UpdateSerialReport()
             Serial.print("\nSet Max Current [mA] : ");
             Serial.print("\nMax Current set to : ");
             Serial.print(set_Iout_max(getValueFromString(readStringFromStream(Serial, char_buff_20b))));
-            Serial.print(" A");
+            Serial.println(" A");
             break;
 
         case 'S':
@@ -483,9 +499,9 @@ void UpdateSerialReport()
         if (SRR & SR_MOSFET_PWM)
         {
             Serial.print("~BUK=");
-            Serial.print(PWM_BUCK, HEX);
+            Serial.print(PWM_BUCK, DEC);
             Serial.print(" ~BST=");
-            Serial.print(PWM_BOOST, HEX);
+            Serial.print(PWM_BOOST, DEC);
             Serial.print(" ");
         }
 
@@ -514,11 +530,14 @@ unsigned long external_last_millis = 0;
 #define vnb_mfact 0.032258064516
 #define vpb_mfact 0.069662815484
 
-#define analogVoltage(x)            (x * 5 / 1023)
-#define ACS712_ZEROCURRENT_VOLTAGE  2.5 V
-#define ACS712_CURRENT_OFFSET_CALIB 22.73 A
-#define ACS712_SENSITIVITY          (66 mV)
-#define current_ACS712_x30A         (((analogVoltage(analogRead(PIN_ACS712_SENSE)) - ACS712_ZEROCURRENT_VOLTAGE) / ACS712_SENSITIVITY) + ACS712_CURRENT_OFFSET_CALIB) ///-
+#define analogVoltage(x)            ((x) * 5 / 1023)
+#define ACS712_SENSITIVITY          (66e-3)
+
+float getCurrentFromACS712()
+{
+    Vshunt = analogVoltage(analogRead(PIN_ACS712_SENSE) - ACS712_ZeroError);
+    return Vshunt / ACS712_SENSITIVITY;
+}
 
 void UpdateExternals()
 {
@@ -530,8 +549,7 @@ void UpdateExternals()
     
     Vout = Vpb - Vnb;
     
-    Vshunt = analogVoltage(analogRead(PIN_ACS712_SENSE) - ACS712_ZEROCURRENT_VOLTAGE);
-    Iout = current_ACS712_x30A; ///
+    Iout = getCurrentFromACS712();
     
     Power = Vout * Iout;
     Energy += (Power < 0 ? 0 : Vout * Iout * delta_millis_external / 3600);
@@ -539,41 +557,57 @@ void UpdateExternals()
 
     UpdateSerialReport();
     UpdateDisplay();
+    
+    if (Vout_max < Vin)
+    {
+        BBCMR |= BUCK;
+        BBCMR &= ~BOOST;
+    }
+    else
+    {
+        BBCMR |= BOOST;
+        BBCMR &= ~BUCK;
+    }
 
     BBCMR = ((Vin < UVLOT) ? ((BBCMR & ~(BOOST | BUCK)) | UVLO) : (BBCMR & ~UVLO)); // under voltage lockout protection
-    
-    PORTA = ((BBCMR & BUCK ) ? (PORTA & ~(1 << 0)) : (PORTA | (1 << 0)));  // SET RELAY SIGNAL ACCORDING TO BUCK / BOOST
-    PORTA = ((BBCMR & BOOST) ? (PORTA & ~(1 << 1)) : (PORTA | (1 << 1)));
+
+    if (BBCMR & BOOST)
+        PORTA &= ~((1 << 0) | (1 << 1));
+    else
+        PORTA |= ((1 << 0) | (1 << 1));
+
+    //PORTA = ((BBCMR & BUCK ) ? (PORTA & ~(1 << 0)) : (PORTA & ~(1 << 1)));  // SET RELAY SIGNAL ACCORDING TO BUCK / BOOST
+    //PORTA = ((BBCMR & BOOST) ? (PORTA | (1 << 0)) : (PORTA | (1 << 1)));
 
     PORTB = (digitalRead(PIN_STATUS_LED) ? BBCMR & ~(1 << 7) : PORTB | (1 << 7));
 }
 
 
-#define BUCK_HIGHER     analogWrite(PIN_BUCK_GATE, PWM_BUCK == 255 ? PWM_BUCK : ++PWM_BUCK)
-#define BUCK_LOWER      analogWrite(PIN_BUCK_GATE, PWM_BUCK ? --PWM_BUCK : PWM_BUCK)
-#define BOOST_HIGHER    analogWrite(PIN_BOOST_GATE, PWM_BOOST == 220 ? PWM_BOOST : ++PWM_BOOST)
-#define BOOST_LOWER     analogWrite(PIN_BOOST_GATE, PWM_BOOST ? --PWM_BOOST : PWM_BOOST)
+#define BUCK_HIGHER     analogWrite(PIN_BUCK_GATE , (( PWM_BUCK >=  220) ? (PWM_BUCK=220 ) : (++PWM_BUCK ) ))
+#define BUCK_LOWER      analogWrite(PIN_BUCK_GATE , (( PWM_BUCK >    0 ) ? ( --PWM_BUCK  ) : (PWM_BUCK=0 ) ))
+#define BOOST_HIGHER    analogWrite(PIN_BOOST_GATE, (( PWM_BOOST >= 220) ? (PWM_BOOST=220) : (++PWM_BOOST) ))
+#define BOOST_LOWER     analogWrite(PIN_BOOST_GATE, ((PWM_BOOST >    0 ) ? ( --PWM_BOOST ) : (PWM_BOOST=0) ))
 
 void UpdateInternal()
 {
-    //// get delta time from last update
+    // get delta time from last update
     //static unsigned short delta_millis_internal = millis() - internal_last_millis;
 
     // read priority parameters ( V and I )
-    Vout = (analogRead(PIN_PBOOST_SENSE) * vpb_mfact) - (BBCMR & BUCK ? analogRead(PIN_NBOOST_SENSE) * vnb_mfact : 0);
-    Iout = current_ACS712_x30A;
+    Vout = (analogRead(PIN_PBOOST_SENSE) * vpb_mfact) - ((BBCMR & BUCK) ? analogRead(PIN_NBOOST_SENSE) * vnb_mfact : 0);
+    Iout = getCurrentFromACS712();
 
     BBCMR = ((Vout >= Vout_max) ? (BBCMR | CV) : (BBCMR & ~CV));  //CV register update
     BBCMR = ((Iout >= Iout_max) ? (BBCMR | CC) : (BBCMR & ~CC));  //CC register update
 
     // update buck channel
-    if (BBCMR & BUCK)
+    if ((BBCMR & BUCK))
         ((Iout > Iout_max || Vout > Vout_max) ? BUCK_LOWER : BUCK_HIGHER);
     else if (PWM_BUCK)
         analogWrite(PIN_BUCK_GATE, 0);  // single channel locking
 
     // update boost channel
-    if (BBCMR & BOOST)
+    if ((BBCMR & BOOST))
         ((Iout > Iout_max || Vout > Vout_max) ? BOOST_LOWER : BOOST_HIGHER);
     else if (PWM_BOOST)
         analogWrite(PIN_BOOST_GATE, 0);  // single channel locking
