@@ -150,6 +150,7 @@ void InitializeACS712()
 
 #define colorFromRGB(red, green, blue) (int(red * 0.125) << 11) | (int(green * 0.25) << 5) | int(blue * 0.125)
 
+bool numpadIsOnScreen = false;
 button buttons_numpad[4][3];
 button buttons_voltage;
 button buttons_current;
@@ -235,6 +236,8 @@ void DrawNumpad()
     for (int i = 0; i < 4; ++i)
         for (int j = 0; j < 3; ++j)
             buttons_numpad[i][j].drawButton();
+
+    numpadIsOnScreen = true;
 }
 
 void __drawParam_voltage(float value, char mode = 0)
@@ -353,6 +356,7 @@ float set_Iout_max(float value)
 }
 
 char char_buff_20b[20];  // a global buffer space
+int iterator_buff_20b = -1;
 char* readStringFromStream(Stream &stream, char* buffer, int max_size = 20)
 {
     int i = -1;
@@ -519,7 +523,61 @@ void UpdateSerialReport()
     }
 }
 
-void UpdateDisplay() { __drawParams(); }
+void updateNumpad()
+{
+    static char itoa_buffspace[3];
+    bool pressed = touched();
+
+    for (int i = 0; i < 4; ++i)
+    {
+        for (j = 0; j < 3; ++j)
+        {
+            buttons_numpad[i][j].press(pressed && buttons_numpad[i][j].contains(cursor_x, cursor_y));
+
+            buttons_numpad[i][j].drawButton(buttons_numpad[i][j].justPressed());
+
+            if (buttons_numpad[i][j].justReleased())
+            {
+                int npVal = i * 3 + j + 1;
+
+                if (npVal == 12) // >
+                {
+                    char_buff_20b[++iterator_buff_20b] = '\0';
+                    /// add code to update the selected variable here
+                    npVal = 10; // to reset the buffer space once done.
+                }
+                else if (iterator_buff_20b < 5 && npVal != 10) // maximum of five digits including decimal seperator
+                {
+                    if (iterator_buff_20b == 1) // automatically adds decimal seperator after two digits
+                        char_buff_20b[++iterator_buff_20b] = '.';
+                    char_buff_20b[++iterator_buff_20b] = itoa((npVal == 11 ? 0 : npVal), itoa_buffspace, 10);
+                }
+
+                if (npVal == 10) // X
+                {
+                    char_buff_20b = "";
+                    iterator_buff_20b = -1;
+                    /// add code to hide the numpad.
+                }
+            }
+        }
+    }
+}
+
+void updateButtons()
+{
+    static bool pressed = false;
+
+    updateNumpad(pressed = touched());
+
+    
+}
+
+void UpdateDisplay()
+{ 
+    updateButtons();
+    __drawParams(); 
+}
 
 
 // stores the last update time for external activities
