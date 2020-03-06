@@ -13,10 +13,10 @@ typedef Adafruit_GFX_Button button;
 #define XM      A2
 #define YP      A3
 #define YM      9
-#define TS_LEFT 919
-#define TS_RT   98
-#define TS_TOP  866
-#define TS_BOT  190
+#define TS_LEFT 98
+#define TS_RT   919
+#define TS_TOP  190
+#define TS_BOT  866
 
 MCUFRIEND_kbv screen;
 TouchScreen touchscreen = TouchScreen(8, A3, A2, 9, 300);
@@ -170,7 +170,8 @@ void InitializeDisplay()
     #define npSpacing 4
     #define getNPPos(i, j) npX + ((npWidth + npSpacing) * j), npY + ((npHeight + npSpacing) * i)
 
-    screen.fillScreen(colorFromRGB(20, 20, 20));
+    #define BACKGROUND_COLOR colorFromRGB(20, 20, 20)
+    screen.fillScreen(BACKGROUND_COLOR);
 
     for (int i = 0; i < 4; ++i)
     {
@@ -180,18 +181,18 @@ void InitializeDisplay()
             int npVal = i * 3 + j + 1;
 
             if (npVal == 10)
-                buttons_numpad[i][j].initButtonUL(&screen, getNPPos(i, j), npSize, colorFromRGB(19, 19, 24), colorFromRGB(40, 41, 45), colorFromRGB(47, 163, 196), "X", 4);
+                buttons_numpad[i][j].initButtonUL(&screen, getNPPos(i, j), npSize, colorFromRGB(151, 183, 86), colorFromRGB(40, 41, 45), colorFromRGB(47, 163, 196), "X", 4);
             else if (npVal == 11)
-                buttons_numpad[i][j].initButtonUL(&screen, getNPPos(i, j), npSize, colorFromRGB(19, 19, 24), colorFromRGB(40, 41, 45), colorFromRGB(47, 163, 196), "0", 4);
+                buttons_numpad[i][j].initButtonUL(&screen, getNPPos(i, j), npSize, colorFromRGB(151, 183, 86), colorFromRGB(40, 41, 45), colorFromRGB(47, 163, 196), "0", 4);
             else if (npVal == 12)
-                buttons_numpad[i][j].initButtonUL(&screen, getNPPos(i, j), npSize, colorFromRGB(19, 19, 24), colorFromRGB(40, 41, 45), colorFromRGB(47, 163, 196), ">", 4);
+                buttons_numpad[i][j].initButtonUL(&screen, getNPPos(i, j), npSize, colorFromRGB(151, 183, 86), colorFromRGB(40, 41, 45), colorFromRGB(47, 163, 196), ">", 4);
             else
-                buttons_numpad[i][j].initButtonUL(&screen, getNPPos(i, j), npSize, colorFromRGB(19, 19, 24), colorFromRGB(40, 41, 45), colorFromRGB(47, 163, 196), itoa(npVal, npstr, 10), 4);
+                buttons_numpad[i][j].initButtonUL(&screen, getNPPos(i, j), npSize, colorFromRGB(151, 183, 86), colorFromRGB(40, 41, 45), colorFromRGB(47, 163, 196), itoa(npVal, npstr, 10), 4);
         }
     }
 
-    buttons_voltage.initButtonUL(&screen, 20, 20, 200, 70, colorFromRGB(100, 100, 100), colorFromRGB(20, 20, 20), colorFromRGB(100, 100, 100), "        V", 3);
-    buttons_current.initButtonUL(&screen, 20, 120, 200, 70, colorFromRGB(100, 100, 100), colorFromRGB(20, 20, 20), colorFromRGB(100, 100, 100), "        A", 3);
+    buttons_voltage.initButtonUL(&screen, 20, 20, 200, 70, colorFromRGB(100, 100, 100), BACKGROUND_COLOR, colorFromRGB(100, 100, 100), "        V", 3);
+    buttons_current.initButtonUL(&screen, 20, 120, 200, 70, colorFromRGB(100, 100, 100), BACKGROUND_COLOR, colorFromRGB(100, 100, 100), "        A", 3);
 
     Serial.println("[ OK ] Display initialized.");
 }
@@ -240,12 +241,18 @@ void DrawNumpad()
     numpadIsOnScreen = true;
 }
 
+void CloseNumpad()
+{
+    screen.drawRect(npX, npY, 222, 296, BACKGROUND_COLOR);
+    numpadIsOnScreen = false;
+}
+
 void __drawParam_voltage(float value, char mode = 0)
 {
     static char previous_strlen = 0;
     
     if (!mode || mode)
-        screen.setTextColor(colorFromRGB(200, 200, 200), colorFromRGB(20, 20, 20));
+        screen.setTextColor(colorFromRGB(200, 200, 200), BACKGROUND_COLOR);
 
     screen.setTextSize(4);
     screen.setCursor(40, 40);
@@ -267,7 +274,7 @@ void __drawParam_current(float value, char mode = 0)
     static char previous_strlen = 0;
 
     if (!mode || mode)
-        screen.setTextColor(colorFromRGB(200, 200, 200), colorFromRGB(20, 20, 20));
+        screen.setTextColor(colorFromRGB(200, 200, 200), BACKGROUND_COLOR);
 
     screen.setTextSize(4);
     screen.setCursor(40, 140);
@@ -300,8 +307,6 @@ void DrawHomeScreen()
     buttons_current.drawButton();
 
     __drawParams();
-
-    DrawNumpad();
 }
 
 void setup()
@@ -523,59 +528,99 @@ void UpdateSerialReport()
     }
 }
 
-void updateNumpad()
+#define PARAM_NONE      0
+#define PARAM_VOLTAGE   1
+#define PARAM_CURRENT   2
+int selectedParam = PARAM_NONE;
+
+void updateNumpad(bool pressed)
 {
-    static char itoa_buffspace[3];
-    bool pressed = touched();
+    if (!numpadIsOnScreen)
+        return;
 
     for (int i = 0; i < 4; ++i)
     {
-        for (j = 0; j < 3; ++j)
+        for (int j = 0; j < 3; ++j)
         {
             buttons_numpad[i][j].press(pressed && buttons_numpad[i][j].contains(cursor_x, cursor_y));
 
-            buttons_numpad[i][j].drawButton(buttons_numpad[i][j].justPressed());
+            if (buttons_numpad[i][j].justPressed())
+                buttons_numpad[i][j].drawButton(true);
 
             if (buttons_numpad[i][j].justReleased())
             {
+                buttons_numpad[i][j].drawButton(false);
+
                 int npVal = i * 3 + j + 1;
 
                 if (npVal == 12) // >
                 {
                     char_buff_20b[++iterator_buff_20b] = '\0';
-                    /// add code to update the selected variable here
-                    npVal = 10; // to reset the buffer space once done.
+                    
+                    if (selectedParam == PARAM_VOLTAGE)
+                        set_Vout_max(getValueFromString(char_buff_20b));
+                    else if (selectedParam == PARAM_CURRENT)
+                        set_Iout_max(getValueFromString(char_buff_20b));
+                    
+                    npVal = 10; // to reset the buffer space
                 }
                 else if (iterator_buff_20b < 5 && npVal != 10) // maximum of five digits including decimal seperator
                 {
                     if (iterator_buff_20b == 1) // automatically adds decimal seperator after two digits
                         char_buff_20b[++iterator_buff_20b] = '.';
-                    char_buff_20b[++iterator_buff_20b] = itoa((npVal == 11 ? 0 : npVal), itoa_buffspace, 10);
+                    char_buff_20b[++iterator_buff_20b] = (npVal == 11 ? 48 : 48 + npVal);
                 }
 
                 if (npVal == 10) // X
                 {
-                    char_buff_20b = "";
+                    strcpy(char_buff_20b, "");
                     iterator_buff_20b = -1;
-                    /// add code to hide the numpad.
+                    CloseNumpad();
+                    selectedParam = PARAM_NONE;
                 }
             }
         }
     }
 }
 
-void updateButtons()
+void updateButtons(bool pressed)
 {
-    static bool pressed = false;
+    static bool last_touchState = false;
+    
+    if (last_touchState == pressed)
+    {
+        last_touchState = pressed;
+        return;
+    }
+    last_touchState = pressed;
 
-    updateNumpad(pressed = touched());
+    buttons_voltage.press(pressed && buttons_voltage.contains(cursor_x, cursor_y));
+    if (buttons_voltage.justPressed())
+        buttons_voltage.drawButton(true);
+    if (buttons_voltage.justReleased())
+    {
+        buttons_voltage.drawButton(false);
+        selectedParam = PARAM_VOLTAGE;
+        DrawNumpad();
+    }
 
+    buttons_current.press(pressed && buttons_current.contains(cursor_x, cursor_y));
+    if (buttons_current.justPressed())
+        buttons_current.drawButton(true);
+    if (buttons_current.justReleased())
+    {
+        buttons_current.drawButton(false);
+        selectedParam = PARAM_CURRENT;
+        DrawNumpad();
+    }
+
+    updateNumpad(pressed);
     
 }
 
-void UpdateDisplay()
+void UpdateDisplay(bool pressed)
 { 
-    updateButtons();
+    updateButtons(pressed);
     __drawParams(); 
 }
 
@@ -597,7 +642,7 @@ float getCurrentFromACS712()
     return Vshunt / ACS712_SENSITIVITY;
 }
 
-void UpdateExternals()
+void UpdateExternals(bool pressed)
 {
     static unsigned short delta_millis_external = millis() - external_last_millis;
 
@@ -614,7 +659,7 @@ void UpdateExternals()
     external_last_millis += delta_millis_external;
 
     UpdateSerialReport();
-    UpdateDisplay();
+    UpdateDisplay(pressed);
     
     if (Vout_max < Vin)
     {
@@ -675,9 +720,14 @@ void loop()
 {
     UpdateInternal();
 
-    if (millis() - external_last_millis > 200)
+    static bool pressed = false, last_touchState = false;
+    pressed = touched();
+
+    if ((millis() - external_last_millis > 200) || (last_touchState != pressed))
     {
-        UpdateExternals();
+        UpdateExternals(pressed);
         external_last_millis = millis();
     }
+
+    last_touchState = pressed;
 }
