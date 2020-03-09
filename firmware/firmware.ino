@@ -203,7 +203,7 @@ void InitializeSystem()
     Serial.begin(115200);
 
     Serial.println("\n AUXPIS POWER SUPPLY");
-    Serial.println("Version 2020.02.25 [ Beta ] --development-mode");
+    Serial.println("Version 2020.3.6 [ Beta ] --development-mode");
     Serial.println("Licensed under MIT License. See LICENSE.md at https://github.com/rithviknishad/auxpis-bps/\n");
 
     InitializeIO();
@@ -243,7 +243,7 @@ void DrawNumpad()
 
 void CloseNumpad()
 {
-    screen.drawRect(npX, npY, 222, 296, BACKGROUND_COLOR);
+    screen.fillRect(npX-1, npY-1, 224, 298, BACKGROUND_COLOR);
     numpadIsOnScreen = false;
 }
 
@@ -575,8 +575,10 @@ void updateNumpad(bool pressed)
                 {
                     strcpy(char_buff_20b, "");
                     iterator_buff_20b = -1;
-                    CloseNumpad();
                     selectedParam = PARAM_NONE;
+
+                    CloseNumpad();
+                    return;
                 }
             }
         }
