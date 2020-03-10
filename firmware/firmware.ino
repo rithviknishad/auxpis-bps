@@ -2,8 +2,6 @@
 #include <MCUFRIEND_kbv.h>
 #include <TouchScreen.h>
 
-#include <Fonts/Org_01.h>
-
 #include "units.h"
 
 typedef Adafruit_GFX_Button button;
@@ -105,6 +103,15 @@ short PWM_BUCK = 0;
 short PWM_BOOST = 0;
 
 
+#define PARAM_NONE      0
+#define PARAM_VOLTAGE   1
+#define PARAM_CURRENT   2
+int selectedParam = PARAM_NONE;
+
+
+char char_buff_20b[20];  // a handy global buffer space
+int iterator_buff_20b = -1; // corresponding iterator for it :/
+
 
 void InitializeIO()
 {
@@ -113,7 +120,7 @@ void InitializeIO()
     // set timer register's prescalers of FET control pins to maximize performance
     TCCR2A = (TCCR2A & B11111000) | B00000001;    // PIN_BOOST_GATE (PIN 10)
     TCCR1A = (TCCR1A & B11111000) | B00000001;    // PIN_BUCK_GATE  (PIN 11)
-    Serial.println("      [ 1 / 5 ] Updated Timer Register Prescalers.");
+    Serial.println("      [ 1 / 5 ] Updated Timer Register Prescalers.");    
 
     // set pin modes of IO pins (other device's pins initialized and handled by libraries)
     DDRB |= ((1 << 4) | (1 << 5) | (1 << 7));  // pinMode(PIN_BOOST_GATE, OUTPUT); pinMode(PIN_BUCK_GATE, OUTPUT); pinMode(PIN_STATUS_LED, OUTPUT);
@@ -160,8 +167,6 @@ void InitializeDisplay()
     screen.begin(screen.readID() == 0xD3D3 ? 0x9486 : screen.readID());
     screen.setRotation(3);
 
-    //screen.setFont(&Org_01);
-
     #define npX 240
     #define npY 20
     #define npHeight 70
@@ -170,8 +175,23 @@ void InitializeDisplay()
     #define npSpacing 4
     #define getNPPos(i, j) npX + ((npWidth + npSpacing) * j), npY + ((npHeight + npSpacing) * i)
 
-    #define BACKGROUND_COLOR colorFromRGB(20, 20, 20)
-    screen.fillScreen(BACKGROUND_COLOR);
+    #define BACKGROUND_COLOR colorFromRGB(30, 30, 30)
+
+    screen.fillScreen(colorFromRGB(255, 255, 255));
+    screen.setTextSize(4);
+    screen.setCursor(110, 120);
+    screen.setTextColor(0);
+    screen.println("A U X P I S");
+    screen.setTextSize(2);
+    screen.setCursor(140, 200);
+    screen.setTextColor(colorFromRGB(255, 0, 0));
+    screen.println("booting system...");
+
+    for (int i = 0; i < screen.width()/12; ++i)
+    {
+        screen.print('_');
+        delay(10);
+    }
 
     for (int i = 0; i < 4; ++i)
     {
@@ -181,18 +201,26 @@ void InitializeDisplay()
             int npVal = i * 3 + j + 1;
 
             if (npVal == 10)
-                buttons_numpad[i][j].initButtonUL(&screen, getNPPos(i, j), npSize, colorFromRGB(151, 183, 86), colorFromRGB(40, 41, 45), colorFromRGB(47, 163, 196), "X", 4);
+                buttons_numpad[i][j].initButtonUL(&screen, getNPPos(i, j), npSize, 0xF800                    , 0xF800                  , colorFromRGB(245, 245, 245), "CLR", 3);
             else if (npVal == 11)
-                buttons_numpad[i][j].initButtonUL(&screen, getNPPos(i, j), npSize, colorFromRGB(151, 183, 86), colorFromRGB(40, 41, 45), colorFromRGB(47, 163, 196), "0", 4);
+                buttons_numpad[i][j].initButtonUL(&screen, getNPPos(i, j), npSize, colorFromRGB(40, 41, 45), colorFromRGB(40, 41, 45), colorFromRGB(226, 192, 120), "0", 4);
             else if (npVal == 12)
-                buttons_numpad[i][j].initButtonUL(&screen, getNPPos(i, j), npSize, colorFromRGB(151, 183, 86), colorFromRGB(40, 41, 45), colorFromRGB(47, 163, 196), ">", 4);
+                buttons_numpad[i][j].initButtonUL(&screen, getNPPos(i, j), npSize, colorFromRGB(44, 190, 78), colorFromRGB(44, 190, 78), colorFromRGB(245, 245, 245), "OK", 3);
             else
-                buttons_numpad[i][j].initButtonUL(&screen, getNPPos(i, j), npSize, colorFromRGB(151, 183, 86), colorFromRGB(40, 41, 45), colorFromRGB(47, 163, 196), itoa(npVal, npstr, 10), 4);
+                buttons_numpad[i][j].initButtonUL(&screen, getNPPos(i, j), npSize, colorFromRGB(40, 41, 45), colorFromRGB(40, 41, 45), colorFromRGB(226, 192, 120), itoa(npVal, npstr, 10), 4);
         }
     }
 
-    buttons_voltage.initButtonUL(&screen, 20, 20, 200, 70, colorFromRGB(100, 100, 100), BACKGROUND_COLOR, colorFromRGB(100, 100, 100), "        V", 3);
-    buttons_current.initButtonUL(&screen, 20, 120, 200, 70, colorFromRGB(100, 100, 100), BACKGROUND_COLOR, colorFromRGB(100, 100, 100), "        A", 3);
+    #define MPBTN_V_X       20
+    #define MPBTN_V_Y       20
+    #define MPBTN_I_X       20
+    #define MPBTN_I_Y       120
+    #define MPBTN_WIDTH     200
+    #define MPBTN_HEIGHT    70
+    #define MPBTN_BGCOLOR   colorFromRGB(55, 55, 61)
+
+    buttons_voltage.initButtonUL(&screen, MPBTN_V_X, MPBTN_V_Y, MPBTN_WIDTH, MPBTN_HEIGHT, MPBTN_BGCOLOR, MPBTN_BGCOLOR, colorFromRGB(255, 183, 26), "        V", 3);
+    buttons_current.initButtonUL(&screen, MPBTN_I_X, MPBTN_I_Y, MPBTN_WIDTH, MPBTN_HEIGHT, MPBTN_BGCOLOR, MPBTN_BGCOLOR, colorFromRGB(255, 183, 26), "        A", 3);
 
     Serial.println("[ OK ] Display initialized.");
 }
@@ -206,10 +234,13 @@ void InitializeSystem()
     Serial.println("Version 2020.3.6 [ Beta ] --development-mode");
     Serial.println("Licensed under MIT License. See LICENSE.md at https://github.com/rithviknishad/auxpis-bps/\n");
 
-    InitializeIO();
-    InitializeACS712();
     InitializeDisplay();
 
+    InitializeIO();
+    InitializeACS712();
+
+    delay(1000);
+    screen.fillScreen(BACKGROUND_COLOR);
     /// add restriction code for low inupt voltage...
 }
 
@@ -223,7 +254,7 @@ bool touched()
     pinMode(YP, OUTPUT); pinMode(XM, OUTPUT);
     digitalWrite(YP, 1); digitalWrite(XM, 1);
 
-    if (point.z > 40 && point.z < 1000)
+    if (point.z > 0 && point.z < 1000)
     {
         cursor_x = map(point.y, TS_LEFT, TS_RT, 0, screen.width());
         cursor_y = map(point.x, TS_TOP, TS_BOT, 0, screen.height());
@@ -234,6 +265,7 @@ bool touched()
 
 void DrawNumpad()
 {
+    CloseNumpad();
     for (int i = 0; i < 4; ++i)
         for (int j = 0; j < 3; ++j)
             buttons_numpad[i][j].drawButton();
@@ -251,12 +283,44 @@ void __drawParam_voltage(float value, char mode = 0)
 {
     static char previous_strlen = 0;
     
-    if (!mode || mode)
-        screen.setTextColor(colorFromRGB(200, 200, 200), BACKGROUND_COLOR);
-
     screen.setTextSize(4);
+
+    if (selectedParam == PARAM_VOLTAGE)
+    {
+        if (previous_strlen != iterator_buff_20b)
+            screen.fillRect(MPBTN_V_X + 6, MPBTN_V_Y + 10, MPBTN_WIDTH - 50, MPBTN_HEIGHT - 20, MPBTN_BGCOLOR);
+        previous_strlen = iterator_buff_20b;
+
+        screen.setCursor(40, 40);
+        screen.setTextColor(colorFromRGB(226, 192, 120), MPBTN_BGCOLOR);
+
+        for (int i = 0; i <= iterator_buff_20b; ++i)
+            screen.print(char_buff_20b[i]);
+        
+        if (iterator_buff_20b != 4)
+            screen.print('_');
+
+        return;
+    }
+
     screen.setCursor(40, 40);
-    
+
+    if (value > Vout_max * 1.03)
+    {
+        screen.drawRoundRect(MPBTN_V_X, MPBTN_V_Y, MPBTN_WIDTH, MPBTN_HEIGHT, min(MPBTN_WIDTH, MPBTN_HEIGHT) / 4, colorFromRGB(255, 0, 0));
+        screen.setTextColor(colorFromRGB(255, 0, 0), colorFromRGB(69, 12, 15));
+    }
+    else if (value < Vout_max * 0.97)
+    {
+        screen.drawRoundRect(MPBTN_V_X, MPBTN_V_Y, MPBTN_WIDTH, MPBTN_HEIGHT, min(MPBTN_WIDTH, MPBTN_HEIGHT) / 4, colorFromRGB(255, 183, 26));
+        screen.setTextColor(colorFromRGB(255, 183, 26), colorFromRGB(219, 171, 9));
+    }
+    else
+    {
+        screen.drawRoundRect(MPBTN_V_X, MPBTN_V_Y, MPBTN_WIDTH, MPBTN_HEIGHT, min(MPBTN_WIDTH, MPBTN_HEIGHT) / 4, MPBTN_BGCOLOR);
+        screen.setTextColor(colorFromRGB(200, 200, 200), MPBTN_BGCOLOR);
+    }
+
     int str_count = screen.print(value);
 
     if (str_count < previous_strlen)
@@ -273,11 +337,38 @@ void __drawParam_current(float value, char mode = 0)
 {
     static char previous_strlen = 0;
 
-    if (!mode || mode)
-        screen.setTextColor(colorFromRGB(200, 200, 200), BACKGROUND_COLOR);
-
     screen.setTextSize(4);
+
+    if (selectedParam == PARAM_CURRENT)
+    {
+        if (previous_strlen != iterator_buff_20b)
+            screen.fillRect(MPBTN_I_X + 6, MPBTN_I_Y + 10, MPBTN_WIDTH - 50, MPBTN_HEIGHT - 20, MPBTN_BGCOLOR);
+        previous_strlen = iterator_buff_20b;
+
+        screen.setCursor(40, 140);
+        screen.setTextColor(colorFromRGB(226, 192, 120), MPBTN_BGCOLOR);
+
+        for (int i = 0; i <= iterator_buff_20b; ++i)
+            screen.print(char_buff_20b[i]);
+        
+        if (iterator_buff_20b != 4)
+            screen.print('_');
+        return;
+    }
+
     screen.setCursor(40, 140);
+
+    if (value > Iout_max * 1.03)
+    {
+        screen.drawRoundRect(MPBTN_I_X, MPBTN_I_Y, MPBTN_WIDTH, MPBTN_HEIGHT, min(MPBTN_WIDTH, MPBTN_HEIGHT) / 4, colorFromRGB(255, 0, 0));
+        screen.setTextColor(colorFromRGB(255, 0, 0), colorFromRGB(69, 12, 15));
+    }
+    else
+    {
+        screen.drawRoundRect(MPBTN_I_X, MPBTN_I_Y, MPBTN_WIDTH, MPBTN_HEIGHT, min(MPBTN_WIDTH, MPBTN_HEIGHT) / 4, MPBTN_BGCOLOR);
+        screen.setTextColor(colorFromRGB(200, 200, 200), MPBTN_BGCOLOR);
+    }
+
     int str_count = screen.print(value);
 
     if (str_count < previous_strlen)
@@ -360,8 +451,6 @@ float set_Iout_max(float value)
         return Iout_max = value;
 }
 
-char char_buff_20b[20];  // a global buffer space
-int iterator_buff_20b = -1;
 char* readStringFromStream(Stream &stream, char* buffer, int max_size = 20)
 {
     int i = -1;
@@ -528,11 +617,6 @@ void UpdateSerialReport()
     }
 }
 
-#define PARAM_NONE      0
-#define PARAM_VOLTAGE   1
-#define PARAM_CURRENT   2
-int selectedParam = PARAM_NONE;
-
 void updateNumpad(bool pressed)
 {
     if (!numpadIsOnScreen)
@@ -564,7 +648,7 @@ void updateNumpad(bool pressed)
                     
                     npVal = 10; // to reset the buffer space
                 }
-                else if (iterator_buff_20b < 5 && npVal != 10) // maximum of five digits including decimal seperator
+                else if (iterator_buff_20b < 4 && npVal != 10) // maximum of five digits including decimal seperator
                 {
                     if (iterator_buff_20b == 1) // automatically adds decimal seperator after two digits
                         char_buff_20b[++iterator_buff_20b] = '.';
@@ -597,22 +681,26 @@ void updateButtons(bool pressed)
     last_touchState = pressed;
 
     buttons_voltage.press(pressed && buttons_voltage.contains(cursor_x, cursor_y));
-    if (buttons_voltage.justPressed())
+    if (buttons_voltage.justPressed() && selectedParam != PARAM_VOLTAGE)
         buttons_voltage.drawButton(true);
-    if (buttons_voltage.justReleased())
+    if (buttons_voltage.justReleased() && selectedParam != PARAM_VOLTAGE)
     {
         buttons_voltage.drawButton(false);
         selectedParam = PARAM_VOLTAGE;
+
+        screen.drawRoundRect(MPBTN_V_X, MPBTN_V_Y, MPBTN_WIDTH, MPBTN_HEIGHT, min(MPBTN_WIDTH, MPBTN_HEIGHT) / 4, colorFromRGB(0, 122, 204));
         DrawNumpad();
     }
 
     buttons_current.press(pressed && buttons_current.contains(cursor_x, cursor_y));
-    if (buttons_current.justPressed())
+    if (buttons_current.justPressed() && selectedParam != PARAM_CURRENT)
         buttons_current.drawButton(true);
-    if (buttons_current.justReleased())
+    if (buttons_current.justReleased() && selectedParam != PARAM_CURRENT)
     {
         buttons_current.drawButton(false);
         selectedParam = PARAM_CURRENT;
+        
+        screen.drawRoundRect(MPBTN_V_X, MPBTN_V_Y, MPBTN_WIDTH, MPBTN_HEIGHT, min(MPBTN_WIDTH, MPBTN_HEIGHT) / 4, colorFromRGB(0, 122, 204));
         DrawNumpad();
     }
 
@@ -693,7 +781,7 @@ void UpdateExternals(bool pressed)
 #define BOOST_HIGHER    analogWrite(PIN_BOOST_GATE, (( PWM_BOOST >= 220) ? (PWM_BOOST=220) : (++PWM_BOOST) ))
 #define BOOST_LOWER     analogWrite(PIN_BOOST_GATE, ((PWM_BOOST >    0 ) ? ( --PWM_BOOST ) : (PWM_BOOST=0) ))
 
-void UpdateInternal()
+void UpdateInternals()
 {
     // get delta time from last update
     //static unsigned short delta_millis_internal = millis() - internal_last_millis;
@@ -720,7 +808,7 @@ void UpdateInternal()
 
 void loop()
 {
-    UpdateInternal();
+    UpdateInternals();
 
     static bool pressed = false, last_touchState = false;
     pressed = touched();
