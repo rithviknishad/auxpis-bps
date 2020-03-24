@@ -1,0 +1,14 @@
+R:\repos\auxpis-bps\software\AUXPIS PS CS\bin\Debug\AUXPIS PS CS.exe.config
+R:\repos\auxpis-bps\software\AUXPIS PS CS\bin\Debug\AUXPIS PS CS.exe
+R:\repos\auxpis-bps\software\AUXPIS PS CS\bin\Debug\AUXPIS PS CS.pdb
+R:\repos\auxpis-bps\software\AUXPIS PS CS\obj\Debug\AUXPIS_PS_CS.Form1.resources
+R:\repos\auxpis-bps\software\AUXPIS PS CS\obj\Debug\AUXPIS_PS_CS.Properties.Resources.resources
+R:\repos\auxpis-bps\software\AUXPIS PS CS\obj\Debug\AUXPIS PS CS.csproj.GenerateResource.cache
+R:\repos\auxpis-bps\software\AUXPIS PS CS\obj\Debug\AUXPIS PS CS.exe
+R:\repos\auxpis-bps\software\AUXPIS PS CS\obj\Debug\AUXPIS PS CS.pdb
+R:\repos\auxpis-bps\software\AUXPIS PS CS\obj\Debug\AUXPIS_PS_CS.CLUI_Button.resources
+R:\repos\auxpis-bps\software\AUXPIS PS CS\obj\Debug\AUXPIS_PS_CS.CLUI_HeadButton.resources
+R:\repos\auxpis-bps\software\AUXPIS PS CS\obj\Debug\AUXPIS_PS_CS.CLUI_TextBox.resources
+R:\repos\auxpis-bps\software\AUXPIS PS CS\obj\Debug\AUXPIS_PS_CS.CLUI_TitleBar.resources
+R:\repos\auxpis-bps\software\AUXPIS PS CS\obj\Debug\AUXPIS_PS_CS.SerialPortConfgureWindow.resources
+R:\repos\auxpis-bps\software\AUXPIS PS CS\obj\Debug\AUXPIS PS CS.csprojAssemblyReference.cache
