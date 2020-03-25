@@ -8,6 +8,10 @@
 #define ISENSE_MAX      75.74   A
 #define UVLOT           7       V
 
+#define VINSENSEMAXVOLTAGE 24
+#define VPBMAXSENSEVOLTAGE 24
+#define VNBMAXSENSEVOLTAGE 24
+
 GPIO StatusLED  = GPIO( 13, OUTPUT );
 GPIO BoostGate  = GPIO( 10, OUTPUT );
 GPIO BuckGate   = GPIO( 11, OUTPUT );
@@ -46,7 +50,7 @@ void ReportSerial() {
     Serial.print(MaxOPI);   Serial.print(',');  Serial.print(OPI);      Serial.print(',');
     Serial.print(OPPower);  Serial.print(',');  Serial.print(OPEnergy); Serial.print(',');
     Serial.print(VPB);      Serial.print(',');  Serial.print(VNB);      Serial.print(',');
-    Serial.print(GATE_PWM); Serial.print(',');  Serial.print(SR, BIN);  Serial.print(';');
+    Serial.print(GATE_PWM); Serial.print(',');  Serial.print(SR, BIN);  Serial.print(";\n");
 }
 
 void UpdateExternal(unsigned long deltaTime_millis) {
@@ -58,7 +62,7 @@ void UpdateExternal(unsigned long deltaTime_millis) {
     PRelay.write( MaxOPV > VIn );  NRelay.write( MaxOPV > VIn );
 
     OPPower = OPV * OPI;
-    OPEnergy += Power * deltaTime_millis ms;
+    OPEnergy += OPPower * deltaTime_millis ms;
     ReportSerial();
 }
 

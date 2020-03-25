@@ -1,7 +1,6 @@
 {
-    "board": "arduino:avr:mega",
+    "board": "arduino:avr:uno",
     "sketch": "firmware\\firmware.ino",
-    "port": "COM11",
-    "programmer": "AVR ISP",
-    "configuration": "cpu=atmega2560"
+    "port": "COM3",
+    "programmer": "AVR ISP"
 }
