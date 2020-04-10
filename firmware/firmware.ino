@@ -1,35 +1,44 @@
+#include <Wire.h>
+#include <LiquidCrystal_SR.h>
+
 #include "units.h"
 #include "GPIO.h"
 
-#define VPOT_MIN        3       V
-#define VPOT_MAX        20      V
-#define IPOT_MIN        100     mA
-#define IPOT_MAX        30      A
-#define ISENSE_MAX      75.74   A
-#define UVLOT           7       V
+#define SERIAL_DEBUG // comment this line to disable SERIAL DEBUGGING (for release build)
+#define LCD_DISPLAY // comment this line to disable LCD display (for performance mode, when external system handles display)
 
-#define VINSENSEMAXVOLTAGE 24
-#define VPBMAXSENSEVOLTAGE 24
-#define VNBMAXSENSEVOLTAGE 24
+LiquidCrystal_SR screen(6, 5, 9); // Pin 6 - Data Enable/ SER, Pin 5 - Clock/SCL, Pin 9 -SCK
 
-GPIO StatusLED  = GPIO( 13, OUTPUT );
-GPIO BoostGate  = GPIO( 10, OUTPUT );
+GPIO StatusLED  = GPIO( 13, OUTPUT, HIGH );
+GPIO UVLO       = GPIO( 12, OUTPUT, HIGH );
 GPIO BuckGate   = GPIO( 11, OUTPUT );
-GPIO NRelay     = GPIO(  7, OUTPUT, HIGH );
-GPIO PRelay     = GPIO(  8, OUTPUT, HIGH );
-GPIO VPOTSense  = GPIO( A0, INPUT );
-GPIO IPOTSense  = GPIO( A1, INPUT );
+GPIO BoostGate  = GPIO( 10, OUTPUT );
+GPIO Boost      = GPIO(  9, OUTPUT, HIGH );
+#ifdef LCD_DISPLAY
+    #define LCD_D        8
+    #define LCD_CLK      7
+    #define LCD_SCK      6
+#endif
+GPIO CV         = GPIO(  5, OUTPUT, HIGH  );
+GPIO CC         = GPIO(  4, OUTPUT, HIGH  );
+GPIO VScale     = GPIO(  3, INPUT_PULLUP );
+GPIO IScale     = GPIO(  2, INPUT_PULLUP );
+GPIO VPBSense   = GPIO( A0, INPUT );
+GPIO VNBSense   = GPIO( A1, INPUT );
 GPIO ISense     = GPIO( A2, INPUT );
-GPIO VPBSense   = GPIO( A3, INPUT );
-GPIO VNBSense   = GPIO( A4, INPUT );
-GPIO VInSense   = GPIO( A5, INPUT );
+GPIO VInSense   = GPIO( A3, INPUT );
+GPIO VPOTSense  = GPIO( A4, INPUT );
+GPIO IPOTSense  = GPIO( A5, INPUT );
 
-/*----------------    STATE REGISTERS    ----------------*/
-#define BOOST   (1 << 7)  //  [ 07 ]  --->  Boost Mask
-#define CV      (1 << 6)  //  [ 06 ]  --->  CV Mask
-#define CC      (1 << 5)  //  [ 05 ]  --->  CC Mask
-#define UVLO    (1 << 4)  //  [ 04 ]  --->  UVLO Mask
-uint8_t SR = 0;
+#define VIN_MAX     24 V
+#define VPB_MAX     24 V
+#define VNB_MAX     24 V
+#define VPOT_MIN    3  V
+#define VPOT_MAX    (VScale ? 50 V: 15 V)
+#define IPOT_MIN    (IScale ? 500 mA : 100 mA)
+#define IPOT_MAX    (IScale ? 30 A : 3 A)
+#define ISENSE_MAX  75.74 A
+#define UVLOT       7 V
 
 void InitializeTimers() {
     TCCR2A = (TCCR2A & B11111000) | 1;
@@ -38,56 +47,91 @@ void InitializeTimers() {
 
 void setup() {
     InitializeTimers();
+    
+#ifdef LCD_DISPLAY
+    screen.begin(16, 2);
+    screen.home();
+    screen.print("     AUXPIS");
+    screen.setCursor(0, 1);
+    screen.print("PWR SPLY   v 1.2");
+#endif
+#ifdef SERIAL_DEBUG
     Serial.begin(115200);
+#endif
 }
 
 float VIn, MaxOPV, OPV, MaxOPI, OPI, OPPower, OPEnergy, VPB, VNB;
 int GATE_PWM = 0;
 
-void ReportSerial() {
-    Serial.print(VIn);      Serial.print(',');  Serial.print(millis()); Serial.print(',');
-    Serial.print(MaxOPV);   Serial.print(',');  Serial.print(OPV);      Serial.print(',');
-    Serial.print(MaxOPI);   Serial.print(',');  Serial.print(OPI);      Serial.print(',');
-    Serial.print(OPPower);  Serial.print(',');  Serial.print(OPEnergy); Serial.print(',');
-    Serial.print(VPB);      Serial.print(',');  Serial.print(VNB);      Serial.print(',');
-    Serial.print(GATE_PWM); Serial.print(',');  Serial.print(SR, BIN);  Serial.print(";\n");
+#ifdef SERIAL_DEBUG
+    #define LOG(x)   Serial.print(x); Serial.print(',');
+    #define LOGEnd(x)   Serial.print(x); Serial.print('\n')
+    #define LOGCSV(a, b, c, d, e, f, g, h, i, j, k, l) LOG(a) LOG(b) LOG(c) LOG(d) LOG(e) LOG(f) LOG(g) LOG(h) LOG(i) LOG(j) LOG(k) LOGEnd(l)
+#endif
+
+#ifdef LCD_DISPLAY
+void UpdateInfotainment(LiquidCrystal_SR &lcd) {    
+    lcd.setCursor(0, 0);
+    int remch = lcd.print("OP V = ");
+    remch += lcd.print(OPV);
+    remch += lcd.print(" V");
+    while(remch < 17)
+        remch += lcd.print(" ");
+
+    lcd.setCursor(0, 1);
+    remch -= lcd.print("OP I = ");
+    remch -= lcd.print(OPI);
+    remch -= lcd.print(" A");
+    while (remch > 0)
+        remch -= lcd.print(" ");
 }
+#endif
 
 void UpdateExternal(unsigned long deltaTime_millis) {
-    MaxOPV = (analogRead(VPOTSense.pin) * (VPOT_MAX - VPOT_MIN) / 1023) + VPOT_MIN;
-    MaxOPI = (analogRead(IPOTSense.pin) * (IPOT_MAX - IPOT_MIN) / 1023) + IPOT_MIN;
-    if ( VIn < UVLOT )  SR |= UVLO;  else  SR &= ~UVLO;
-    if ( MaxOPV > VIn )  SR |= BOOST;  else  SR &= ~BOOST;
+    MaxOPV = (analogRead(VPOTSense.pin) * (VPOT_MAX - VPOT_MIN) / 1023.00) + VPOT_MIN;
+    MaxOPI = (analogRead(IPOTSense.pin) * (IPOT_MAX - IPOT_MIN) / 1023.00) + IPOT_MIN;
     
-    PRelay.write( MaxOPV > VIn );  NRelay.write( MaxOPV > VIn );
+    UVLO = VIn < UVLOT;   
+    Boost = MaxOPV > VIn;
 
     OPPower = OPV * OPI;
     OPEnergy += OPPower * deltaTime_millis ms;
-    ReportSerial();
+
+#ifdef LCD_DISPLAY
+    UpdateInfotainment(screen);
+#endif
+#ifdef SERIAL_DEBUG
+    LOGCSV(VIn, millis(), MaxOPV, OPV, MaxOPI, OPI, OPPower, OPEnergy, VPB, VNB, GATE_PWM, " ");
+#endif
 }
 
 void UpdateInternal() {
-    VIn = analogRead(VInSense.pin) * VINSENSEMAXVOLTAGE / 1023;
-    VPB = analogRead(VPBSense.pin) * VPBMAXSENSEVOLTAGE / 1023;
-    VNB = analogRead(VNBSense.pin) * VNBMAXSENSEVOLTAGE / 1023;
+    VIn = analogRead( VInSense.pin ) * VIN_MAX / 1023.00;
+    VPB = analogRead( VPBSense.pin ) * VPB_MAX / 1023.00;
+    VNB = analogRead( VNBSense.pin ) * VNB_MAX / 1023.00;
     
-    OPV = ((SR & BOOST) ? VPB : (VIn - VNB));
-    OPI = (analogRead(ISense.pin) * ISENSE_MAX * 2 / 1023) - ISENSE_MAX;
+    OPV = (Boost ? VPB : (VIn - VNB));
+    OPI = (analogRead(ISense.pin) * ISENSE_MAX * 2 / 1023.00) - ISENSE_MAX;
 
-    if (OPV < MaxOPV)  SR &= ~CV;  else  SR |= CV;
-    if (OPI < MaxOPI)  SR &= ~CC;  else  SR |= CC;
-    if (SR & (CV | CC))  --GATE_PWM;  else  ++GATE_PWM;
+    CV = !(OPV < MaxOPV);
+    CC = !(OPI < MaxOPI);
 
-    analogWrite(BoostGate.pin, ((SR & BOOST) ? (GATE_PWM = min(220, GATE_PWM)) : 0));
-    analogWrite(BuckGate.pin,  ((SR & BOOST) ? 0 : (GATE_PWM = min(255, GATE_PWM))));
-}
+    if (CV | CC)  --GATE_PWM;  else  ++GATE_PWM;
+
+    analogWrite( BoostGate.pin, (( Boost && !UVLO) ? (GATE_PWM = min(220, GATE_PWM)) : 0) );
+    analogWrite( BuckGate.pin,  ((!Boost && !UVLO) ? (GATE_PWM = min(255, GATE_PWM)) : 0) );
+} 
 
 void loop() {
+#if defined(SERIAL_DEBUG) || defined(LCD_DISPLAY)
     static unsigned long external_last_millis = 0, delta_external_miilis = 0;
 
-    while(millis() - external_last_millis < 200)
-        UpdateInternal();
-
-    UpdateExternal(millis() - external_last_millis);
+    UpdateExternal( millis() - external_last_millis );
     external_last_millis = millis();
+
+    while( millis() - external_last_millis < 200 )
+        UpdateInternal();
+#else
+    UpdateInternal();
+#endif
 }

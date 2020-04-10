@@ -3,13 +3,16 @@
 
 #include <Arduino.h>
 
-typedef struct _GPIO {
-    volatile uint8_t *op_port = nullptr;
-    volatile uint8_t *ip_port = nullptr;
-    uint8_t pin = 0;
-    uint8_t bit = 0;
+class GPIO {
 
-    _GPIO(uint8_t physical_pin, bool pinmode, bool init_write = LOW) {        
+public:
+
+    volatile uint8_t *op_port;
+    volatile uint8_t *ip_port;
+    int pin;
+    uint8_t bit;
+
+    GPIO(int physical_pin, int pinmode, bool init_write = LOW) {        
         pin = physical_pin;
         bit = digitalPinToBitMask(pin);
         ip_port = portInputRegister(digitalPinToPort(pin));
@@ -21,12 +24,14 @@ typedef struct _GPIO {
             write(init_write);
     }
 
-    bool read() { *ip_port & bit; }
+    bool read() const { return *ip_port & bit; }
+    operator bool() const { return read(); }
 
-    void write_low()        { *op_port |=  bit;  }
-    void write_high()       { *op_port &= ~bit; }
-    void write(bool value)  { value ? write_high() : write_low(); }
+    void write_low()  const { *op_port |=  bit;  }
+    void write_high() const { *op_port &= ~bit; }
+    void write(const bool new_state) const { new_state ? write_high() : write_low(); }
+    void operator = (const bool new_state) { write(new_state); }
 
-} GPIO;
+};
 
 #endif

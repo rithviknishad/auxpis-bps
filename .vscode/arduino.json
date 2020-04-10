@@ -1,6 +1,7 @@
 {
-    "board": "arduino:avr:uno",
+    "board": "arduino:avr:pro",
     "sketch": "firmware\\firmware.ino",
-    "port": "COM3",
-    "programmer": "AVR ISP"
+    "port": "COM12",
+    "programmer": "AVR ISP",
+    "configuration": "cpu=16MHzatmega328"
 }
