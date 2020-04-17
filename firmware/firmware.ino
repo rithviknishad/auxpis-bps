@@ -7,9 +7,8 @@
 #define SERIAL_DEBUG // comment this line to disable SERIAL DEBUGGING (for release build)
 #define LCD_DISPLAY // comment this line to disable LCD display (for performance mode, when external system handles display)
 
-LiquidCrystal_SR screen(6, 5, 9); // Pin 6 - Data Enable/ SER, Pin 5 - Clock/SCL, Pin 9 -SCK
-
 GPIO StatusLED  = GPIO( 13, OUTPUT, HIGH );
+
 GPIO UVLO       = GPIO( 12, OUTPUT, HIGH );
 GPIO BuckGate   = GPIO( 11, OUTPUT );
 GPIO BoostGate  = GPIO( 10, OUTPUT );
@@ -19,10 +18,8 @@ GPIO Boost      = GPIO(  9, OUTPUT, HIGH );
     #define LCD_CLK      7
     #define LCD_SCK      6
 #endif
-GPIO CV         = GPIO(  5, OUTPUT, HIGH  );
-GPIO CC         = GPIO(  4, OUTPUT, HIGH  );
-GPIO VScale     = GPIO(  3, INPUT_PULLUP );
-GPIO IScale     = GPIO(  2, INPUT_PULLUP );
+GPIO CV         = GPIO(  5, OUTPUT, HIGH  ); //
+GPIO CC         = GPIO(  4, OUTPUT, HIGH  ); //
 GPIO VPBSense   = GPIO( A0, INPUT );
 GPIO VNBSense   = GPIO( A1, INPUT );
 GPIO ISense     = GPIO( A2, INPUT );
@@ -30,13 +27,15 @@ GPIO VInSense   = GPIO( A3, INPUT );
 GPIO VPOTSense  = GPIO( A4, INPUT );
 GPIO IPOTSense  = GPIO( A5, INPUT );
 
+LiquidCrystal_SR screen(LCD_D, LCD_CLK, LCD_SCK);
+
 #define VIN_MAX     24 V
 #define VPB_MAX     24 V
 #define VNB_MAX     24 V
 #define VPOT_MIN    3  V
-#define VPOT_MAX    (VScale ? 50 V: 15 V)
-#define IPOT_MIN    (IScale ? 500 mA : 100 mA)
-#define IPOT_MAX    (IScale ? 30 A : 3 A)
+#define VPOT_MAX    50 V
+#define IPOT_MIN    100 mA
+#define IPOT_MAX    30 A
 #define ISENSE_MAX  75.74 A
 #define UVLOT       7 V
 
