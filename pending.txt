@@ -1,5 +1,0 @@
-[ ] natural discharge resistor
-[ ] current measureing
-[ ] relay op control with discharger
-[ ] thermal protection
-[ ] i2c display

@@ -1,9 +1,0 @@
-R:\repos\auxpis-bps\SoftwareSerialDisplay\bin\Debug\SoftwareSerialDisplay.exe.config
-R:\repos\auxpis-bps\SoftwareSerialDisplay\bin\Debug\SoftwareSerialDisplay.exe
-R:\repos\auxpis-bps\SoftwareSerialDisplay\bin\Debug\SoftwareSerialDisplay.pdb
-R:\repos\auxpis-bps\SoftwareSerialDisplay\obj\Debug\SoftwareSerialDisplay.csprojAssemblyReference.cache
-R:\repos\auxpis-bps\SoftwareSerialDisplay\obj\Debug\SoftwareSerialDisplay.Form1.resources
-R:\repos\auxpis-bps\SoftwareSerialDisplay\obj\Debug\SoftwareSerialDisplay.Properties.Resources.resources
-R:\repos\auxpis-bps\SoftwareSerialDisplay\obj\Debug\SoftwareSerialDisplay.csproj.GenerateResource.cache
-R:\repos\auxpis-bps\SoftwareSerialDisplay\obj\Debug\SoftwareSerialDisplay.exe
-R:\repos\auxpis-bps\SoftwareSerialDisplay\obj\Debug\SoftwareSerialDisplay.pdb
